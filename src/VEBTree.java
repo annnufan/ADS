@@ -1,19 +1,16 @@
-package vEB;
-
 import java.util.HashMap;
 
 public class VEBTree implements IntegerSet {
 
     private long min, max;
-    private int size, shift;
+    private int shift;
     private IntegerSet summary;
     private HashMap<Long, IntegerSet> clusters;
 
     VEBTree(int s) {
         min = max = NO;
         clusters = new HashMap<>();
-        size = s;
-        shift = (size + 1) / 2;
+        shift = (s + 1) / 2;
         if (shift == 1) {
             summary = new SimpleVEBTree(shift);
         } else {
@@ -56,7 +53,7 @@ public class VEBTree implements IntegerSet {
         if (x < min) {
             long tmp = min;
             min = x;
-            x = min;
+            x = tmp;
         }
         clusters.putIfAbsent(high(x), createChild());
         if (isEmpty(clusters.get(high(x)))) {
@@ -72,25 +69,30 @@ public class VEBTree implements IntegerSet {
                 min = max = NO;
                 return;
             }
-            x = clusters.get(summary.getMin()).getMin() | (summary.getMin() << shift);
-            min = x;
+            long minHigh = summary.getMin();
+            clusters.putIfAbsent(minHigh, createChild());
+            min = clusters.get(minHigh).getMin() | (minHigh << shift);
+            clusters.get(minHigh).remove(clusters.get(minHigh).getMin());
+            if (isEmpty(clusters.get(minHigh))) {
+                summary.remove(minHigh);
+            }
+            return;
         }
+        clusters.putIfAbsent(high(x), createChild());
         clusters.get(high(x)).remove(low(x));
-        if (clusters.get(high(x)).getMin() == NO) {
+        if (isEmpty(clusters.get(high(x)))) {
             summary.remove(high(x));
         }
-        if (max == x) {
-            if (summary.getMin() != NO) {
-                max = clusters.get(summary.getMax()).getMax() | (summary.getMax() << shift);
-            } else {
-                max = min;
-            }
+        if (!isEmpty(summary)) {
+            max = clusters.get(summary.getMax()).getMax() | (summary.getMax() << shift);
+        } else {
+            max = min;
         }
     }
 
     @Override
     public long next(long x) {
-        if (isEmpty(this) || x > max) {
+        if (isEmpty(this) || x >= max) {
             return NO;
         }
         if (x < min) {
@@ -110,7 +112,7 @@ public class VEBTree implements IntegerSet {
 
     @Override
     public long prev(long x) {
-        if (isEmpty(this) || x < min) {
+        if (isEmpty(this) || x <= min) {
             return NO;
         }
         if (x > max) {
@@ -125,7 +127,7 @@ public class VEBTree implements IntegerSet {
             clusters.putIfAbsent(prevHigh, createChild());
             return clusters.get(prevHigh).getMax() | (prevHigh << shift);
         }
-        return NO;
+        return min;
     }
 
     @Override
@@ -138,17 +140,7 @@ public class VEBTree implements IntegerSet {
         return max;
     }
 
-    public static void main(String[] args) {
-        VEBTree tree = new VEBTree(20);
-        tree.add(5);
-        tree.add(11);
-        tree.add(10);
-        System.out.println(tree.next(5));
-        tree.remove(10);
-        System.out.println(tree.next(5));
-    }
-
-    private class SimpleVEBTree implements IntegerSet {
+    private static class SimpleVEBTree implements IntegerSet {
         boolean[] a;
 
         SimpleVEBTree(int s) {
@@ -200,5 +192,15 @@ public class VEBTree implements IntegerSet {
             }
             return current < a.length ? current : NO;
         }
+    }
+
+    public static void main(String[] args) {
+        VEBTree tree = new VEBTree(20);
+        tree.add(5);
+        tree.add(11);
+        tree.add(10);
+        System.out.println(tree.next(5));
+        tree.remove(10);
+        System.out.println(tree.next(5));
     }
 }
